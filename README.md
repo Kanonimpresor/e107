@@ -112,6 +112,6 @@ Si te gusta e107 y quieres ayudar a que mejore, considera hacer una pequeña don
 
 ## Licencia
 
-e107 se distribuye bajo los términos y condiciones de la licencia GNU/GPL.(http://www.gnu.org/licenses/gpl.txt).
+e107 se distribuye bajo los términos y condiciones de la licencia GNU [General Public License](http://www.gnu.org/licenses/gpl.txt)
 
-[1]: https://e107.org
+    [1]: https://e107.org
