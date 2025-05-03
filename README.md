@@ -12,15 +12,12 @@
 ## Tabla de contenidos
 
 * [e107 Sistema de Gestión de Contenidos](README.md)
-
   * [Tabla de contenidos](#tabla-de-contenidos)
   * [Requisitos](#requisitos)
-
     * [Mínimos](#minimos)
     * [Recomendados](#recomendados)
     * [Guía de versiones](#guia-de-versiones)
   * [Instalación](#instalacion)
-
     * [Instalación estándar](#instalacion-estandar)
     * [Instalación con Git (versión para desarrolladores)](#instalacion-con-git-version-para-desarrolladores)
   * [Informe de errores](#informe-de-errores)
@@ -115,4 +112,6 @@ Si te gusta e107 y quieres ayudar a que mejore, considera hacer una pequeña don
 
 ## Licencia
 
-e107 se distribuye bajo los términos y condiciones de la licencia GNU/GPL.
+e107 se distribuye bajo los términos y condiciones de la licencia GNU/GPL.(http://www.gnu.org/licenses/gpl.txt).
+
+[1]: https://e107.org
