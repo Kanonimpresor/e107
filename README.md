@@ -7,7 +7,7 @@
 [![Chat en Gitter](https://img.shields.io/gitter/room/e107inc/e107?logo=gitter\&color=ED1965)](https://gitter.im/e107inc/e107?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Descargar e107](https://img.shields.io/sourceforge/dt/e107.svg)](https://sourceforge.net/projects/e107/files/latest/download)
 
-**\[e107]\[1]** es un sistema de gestión de contenidos (CMS) libre y de código abierto que te permite gestionar y publicar contenido online de forma sencilla. Los desarrolladores pueden ahorrar tiempo creando sitios web y aplicaciones web potentes. ¡Y los usuarios pueden evitar programar por completo! Blogs, webs, intranets... e107 lo hace todo.
+**[e107][1]** es un sistema de gestión de contenidos (CMS) libre y de código abierto que te permite gestionar y publicar contenido online de forma sencilla. Los desarrolladores pueden ahorrar tiempo creando sitios web y aplicaciones web potentes. ¡Y los usuarios pueden evitar programar por completo! Blogs, webs, intranets... e107 lo hace todo.
 
 ## Tabla de contenidos
 
@@ -114,4 +114,4 @@ Si te gusta e107 y quieres ayudar a que mejore, considera hacer una pequeña don
 
 e107 se distribuye bajo los términos y condiciones de la licencia GNU [General Public License](http://www.gnu.org/licenses/gpl.txt)
 
-    [1]: https://e107.org
+ [1]: https://e107.org
