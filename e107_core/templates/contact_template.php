@@ -94,7 +94,7 @@ $CONTACT_WRAPPER['form']['CONTACT_PERSON']				= "<div class='control-group form-
 
 $CONTACT_TEMPLATE['form'] = "
 	<form action='".e_SELF."' method='post' id='contactForm' class='mt-5' >
-	{CONTACT_PERSON}
+	
 	<div class='control-group form-group mb-3'><label for='contactName'>{LAN=CONTACT_03}</label>
 		{CONTACT_NAME}
 	</div>
