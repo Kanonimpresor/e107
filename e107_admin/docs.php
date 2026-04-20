@@ -27,10 +27,6 @@ e107::css('inline', 'div.qitem { margin-top:20px }
 
 ');
 
-// Sidebar (admin nativo) -> show/hide de los .docs-item con animación, sin tocar el JS global.
-// Los items se generan en init() con uri="#doc-N"; aquí enganchamos los clicks de esos enlaces
-// dentro del sidebar admin (#admin-ui-nav-menu) y replicamos el efecto que en otras páginas
-// hace el handler "#admin-prefs .plugin-navigation a" de admin.jquery.js.
 e107::js('footer-inline', "
 $(function() {
 	var \$items = $('.docs-item');
@@ -53,7 +49,6 @@ $(function() {
 		}
 	});
 
-	// Activar el doc desde el hash de la URL si existe.
 	if (window.location.hash && window.location.hash.indexOf('#doc-') === 0) {
 		showDoc(window.location.hash);
 	}
@@ -82,9 +77,6 @@ class docs_admin extends e_admin_dispatcher
 
 	protected $menuTitle = LAN_DOCS;
 
-	// Icono del título del menú lateral (panel-heading). Visible también cuando
-	// el sidebar está colapsado, sirviendo de "ancla" para volver a expandirlo.
-	// Usa el sprite nativo e-docs-24 (mismo patrón que admin_log.php, users.php, etc.)
 	protected $adminMenuIcon = 'e-docs-24';
 
 	protected static $helpList = array();
