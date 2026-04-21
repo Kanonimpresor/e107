@@ -38,45 +38,39 @@ if(preg_match('#<body\b[^>]*>(.*?)</body>#is', $phpinfo, $m))
 $phpinfo = preg_replace('#<style\b[^>]*>.*?</style>#is', '', $phpinfo);
 
 // Wrap once. .phpinfo-wrapper scopes all CSS to this page and provides a safety overflow-x.
-// The CSS below styles phpinfo's native td.e / td.v / tr.h classes (width:100% + word-break
-// on cells, so wide values wrap instead of forcing the admin column wider).
+// The inline CSS below is purely STRUCTURAL (layout, spacing, wrapping). The COLOR PALETTE
+// for .phpinfo-wrapper lives in each admin theme stylesheet (e.g. modern-light.css,
+// modern-dark.css), so phpinfo respects the theme the admin is using.
 $phpinfo = '<div class="phpinfo-wrapper">'.$phpinfo.'</div>';
 
-// Inject the phpinfo CSS inline so it works under any admin theme variant (modern-light,
-// modern-dark, corporate, kadmin…) without coupling phpinfo.php to a specific stylesheet.
-// Styles target phpinfo()'s native td.e / td.v / tr.h classes scoped under .phpinfo-wrapper.
+// Structural-only inline CSS: no background-color, no color, no border-color. These are
+// theme palette decisions and belong in the admin theme stylesheets.
 e107::css('inline', '
-.phpinfo-wrapper { max-width: 100%; overflow-x: auto; box-sizing: border-box; color: rgba(0,0,0,0.85); }
+.phpinfo-wrapper { max-width: 100%; overflow-x: auto; box-sizing: border-box; }
 .phpinfo-wrapper * { box-sizing: border-box; }
 .phpinfo-wrapper h1,
 .phpinfo-wrapper h2,
 .phpinfo-wrapper h3,
-.phpinfo-wrapper h4 { color: rgba(0,0,0,0.85); margin-top: 1rem; }
-.phpinfo-wrapper a { color: #337ab7; }
-.phpinfo-wrapper a:hover { color: #23527c; }
+.phpinfo-wrapper h4 { margin-top: 1rem; }
 .phpinfo-wrapper img { max-width: 100%; height: auto; }
-.phpinfo-wrapper hr { border-top: 1px solid #ddd; }
 .phpinfo-wrapper table {
     width: 100%; max-width: 100%;
     border-collapse: collapse; margin-bottom: 1rem;
-    background-color: #ffffff;
 }
 .phpinfo-wrapper td,
 .phpinfo-wrapper th {
-    padding: 6px 10px; border: 1px solid #ddd;
+    padding: 6px 10px; border-width: 1px; border-style: solid;
     text-align: left; vertical-align: top;
     word-break: break-word; overflow-wrap: anywhere;
-    background-color: #fff; color: rgba(0,0,0,0.85);
 }
-.phpinfo-wrapper tr.h th { background-color: #eee; text-align: center; font-weight: bold; }
-.phpinfo-wrapper td.e   { background-color: #f5f5f5; font-weight: bold; }
-.phpinfo-wrapper td.v   { background-color: #fff; font-family: Menlo, Consolas, "Liberation Mono", monospace; }
+.phpinfo-wrapper tr.h th { text-align: center; font-weight: bold; }
+.phpinfo-wrapper td.e   { font-weight: bold; }
+.phpinfo-wrapper td.v   { font-family: Menlo, Consolas, "Liberation Mono", monospace; }
 /* In multi-column rows (label + value), keep the label cell on a single line so a long value
    in td.v cannot squeeze the label into a 1-char-wide column. Single-cell rows (1-column
    sub-tables like PHP QA Team / License / Documentation) keep wrapping so they stay inside
    the admin column width. */
 .phpinfo-wrapper tr > td.e:not(:only-child) { white-space: nowrap; }
-.phpinfo-wrapper td.alert-danger { background-color: #f2dede; color: #a94442; }
 ');
 
 
