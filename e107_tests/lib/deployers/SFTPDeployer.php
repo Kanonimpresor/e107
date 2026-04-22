@@ -100,9 +100,9 @@ class SFTPDeployer extends Deployer
 			' --delete -avzHXShs ' .
 			escapeshellarg(rtrim(APP_PATH, '/') . '/') . ' ' .
 			escapeshellarg("{$fs_params['user']}@{$fs_params['host']}:{$fs_params['path']}");
-		$retcode = self::runCommand($command);
+		$retcode = self::runCommand($command, $stdout, $stderr);
 		if ($retcode !== 0) {
-			throw new Exception("SFTP deployment failed. Run with --debug to see stdout and stderr.");
+			throw new Exception("SFTP deployment failed (rsync exit $retcode): " . trim((string) $stderr));
 		}
 	}
 }
