@@ -1162,6 +1162,41 @@ class e_parse_shortcodeTest extends \Codeception\Test\Unit
 
 	}
 
+	/**
+	 * {FPW_SUBMIT} default render must not stack a second "btn submit" prefix on
+	 * top of the one the form handler already applies, and {FPW_SUBMIT class=X}
+	 * must pass X through to the rendered button.
+	 *
+	 * @see https://github.com/e107inc/e107/pull/5330
+	 */
+	public function testFpwSubmitShortcodeAcceptsClassParm()
+	{
+		require_once(e_CORE."shortcodes/batch/fpw_shortcodes.php");
+
+		try
+		{
+			/** @var fpw_shortcodes $sc */
+			$sc = $this->make('fpw_shortcodes');
+		}
+		catch (Exception $e)
+		{
+			$this->fail($e->getMessage());
+		}
+
+		$sc->__construct();
+
+		$tp = e107::getParser();
+
+		$defaultHtml = $tp->parseTemplate('{FPW_SUBMIT}', true, $sc);
+		$this->assertMatchesRegularExpression('/class=[\'"]btn submit btn-success[\'"]/', $defaultHtml);
+		$this->assertStringNotContainsString('btn submit btn submit', $defaultHtml);
+
+		$withParmHtml = $tp->parseTemplate('{FPW_SUBMIT: class=my-class}', true, $sc);
+		$this->assertStringContainsString('my-class', $withParmHtml);
+		$this->assertStringContainsString('btn submit', $withParmHtml);
+		$this->assertStringNotContainsString('btn submit btn submit', $withParmHtml);
+	}
+
 
 
     public function testForumShortcodes()
