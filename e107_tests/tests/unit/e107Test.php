@@ -2077,8 +2077,6 @@ class e107Test extends \Codeception\Test\Unit
 			->setPref('wysiwyg_list', $editors)
 			->save();
 
-		global $_E107;
-		$_E107['phpunit'] = true; // make sure pref is re-loaded.
 		//	$tinyMceInstalled = e107::isInstalled('tinymce4');
 
 		$tests = array(

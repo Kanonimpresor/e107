@@ -3062,9 +3062,6 @@ Your browser does not support the audio tag.
 
 	public function testCleanHtml()
 	{
-		global $_E107;
-		$_E107['phpunit'] = true; // disable CLI "all access" permissions to simulated a non-cli scenario.
-
 		$this->tp->setScriptAccess(e_UC_NOBODY);
 
 		$tests = array(
@@ -3183,7 +3180,6 @@ Your browser does not support the audio tag.
 		}
 
 		$this->tp->setScriptAccess(false);
-		unset($_E107['phpunit']);
 
 	}
 
