@@ -41,11 +41,11 @@ Allow user logins:
   service.running:
     - name: systemd-user-sessions
 
-Allow user logins (alternate):
-  file.absent:
-    - name: /run/nologin
-    - onfail:
-      - service: Allow user logins
+Allow user logins on every boot:
+  file.symlink:
+    - name: /etc/systemd/system/multi-user.target.wants/systemd-user-sessions.service
+    - target: /usr/lib/systemd/system/systemd-user-sessions.service
+    - makedirs: True
 
 Install Composer:
   cmd.run:

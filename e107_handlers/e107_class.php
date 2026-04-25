@@ -4698,10 +4698,7 @@ class e107
 	public static function wysiwyg($val=null, $returnEditor=false)
 	{
 		static $editor = 'bbcode';
-		static $availEditors;
 		$fallbackEditor = 'bbcode';
-
-		global $_E107;
 
 		if (self::getPref('wysiwyg',false) != true)
 		{
@@ -4710,13 +4707,9 @@ class e107
 		}
 		else
 		{
-			if(!isset($availEditors) || !empty($_E107['phpunit']))
-			{
-				// init list of installed wysiwyg editors
-				$default = self::isInstalled('tinymce4') ? array('tinymce4'=>'TinyMce4') : array();  // if missing pref fallback.
-				$availEditors = self::getPref('wysiwyg_list', $default);
-			//	$availEditors = array_keys(e107::getPlug()->getInstalledWysiwygEditors()); // very slow.
-			}
+			// init list of installed wysiwyg editors
+			$default = self::isInstalled('tinymce4') ? array('tinymce4'=>'TinyMce4') : array();  // if missing pref fallback.
+			$availEditors = self::getPref('wysiwyg_list', $default);
 
 			if($val !== null)
 			{

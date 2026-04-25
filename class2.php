@@ -1230,15 +1230,6 @@ function check_class($var, $userclass = null, $uid = 0)
 		return true;
 	}
 
-	if (e107::isCli())
-	{
-		global $_E107;
-		if (empty($_E107['phpunit']))
-		{
-			return true;
-		}
-	}
-
 	if (is_numeric($uid) && $uid > 0)
 	{    // userid has been supplied, go build that user's class list
 		$userclass = class_list($uid);
