@@ -762,6 +762,45 @@ class e107
 	}
 
 	/**
+	 * Canonical list of directory names a site admin may override in e107_config.php,
+	 * paired with their config-layer default values (no site_path appended).
+	 *
+	 * Single source of truth used by:
+	 *  - class2.php (reading legacy $*_DIRECTORY variables from e107_config.php)
+	 *  - install.php stage_7 (emitting both the legacy and v2.4 array templates)
+	 *
+	 * The v2.4 short-key transform is mechanical and handled by initCore():
+	 *   short = strtolower(str_replace('_DIRECTORY','',$name))
+	 *
+	 * Adding a new overridable name? Add it here and the reader and both templates
+	 * pick it up automatically.
+	 *
+	 * @return array map of *_DIRECTORY name => default path string (with trailing slash)
+	 */
+	public function overridableDirs()
+	{
+		return array(
+			'ADMIN_DIRECTORY'     => 'e107_admin/',
+			'FILES_DIRECTORY'     => 'e107_files/',
+			'IMAGES_DIRECTORY'    => 'e107_images/',
+			'THEMES_DIRECTORY'    => 'e107_themes/',
+			'PLUGINS_DIRECTORY'   => 'e107_plugins/',
+			'HANDLERS_DIRECTORY'  => 'e107_handlers/',
+			'LANGUAGES_DIRECTORY' => 'e107_languages/',
+			'DOCS_DIRECTORY'      => 'e107_docs/',
+			'HELP_DIRECTORY'      => 'e107_docs/help/',
+			'DOWNLOADS_DIRECTORY' => 'e107_media/files/',
+			'UPLOADS_DIRECTORY'   => 'e107_system/temp/',
+			'SYSTEM_DIRECTORY'    => 'e107_system/',
+			'MEDIA_DIRECTORY'     => 'e107_media/',
+			'CACHE_DIRECTORY'     => 'e107_system/cache/',
+			'LOGS_DIRECTORY'      => 'e107_system/logs/',
+			'CORE_DIRECTORY'      => 'e107_core/',
+			'WEB_DIRECTORY'       => 'e107_web/',
+		);
+	}
+
+	/**
 	 * Get default e107 folders, root folders can be overridden by passed override array
 	 *
 	 * @param array $override_root
@@ -3300,6 +3339,280 @@ class e107
 	}
 
 	/**
+	 * Scan a template file for LAN_* constant references and pre-define any
+	 * that are missing, so a subsequent require/include of that file cannot
+	 * fatal on PHP 8 with "Undefined constant LAN_*".
+	 *
+	 * Designed to be called immediately before requireing a legacy template:
+	 *   <code>
+	 *   $tmpl = e107::coreTemplatePath('fpw');
+	 *   e107::predefineLegacyLans($tmpl);
+	 *   require_once $tmpl;
+	 *   </code>
+	 *
+	 * This split (scan + caller's own require) preserves the caller's
+	 * variable scope — legacy templates assign $FPW_TABLE / $SIGNUP_BODY /
+	 * etc. at top level and the caller expects those to land in its own
+	 * scope, which only happens when require runs at the caller's location.
+	 *
+	 * Each auto-defined constant emits an E_USER_WARNING naming the
+	 * constant and the template path; the value is set equal to the
+	 * constant name so missing strings render visibly rather than as
+	 * empty space.
+	 *
+	 * Extraction results are cached keyed on sha1_file($path), so the
+	 * tokeniser runs only on cache miss (first request or after file edit).
+	 * APCu is used when available + enabled; otherwise a file under e_CACHE.
+	 *
+	 * @param string $path absolute filesystem path to the template
+	 * @return bool true if the scan ran (file readable), false otherwise.
+	 *              A false return means the caller should not assume
+	 *              auto-defines happened.
+	 */
+	public static function predefineLegacyLans($path)
+	{
+		if(!is_string($path) || $path === '' || !is_readable($path))
+		{
+			return false;
+		}
+
+		$names = self::_extractLanConstantsFromTemplate($path);
+		foreach($names as $name)
+		{
+			if(!defined($name))
+			{
+				define($name, $name);
+				trigger_error(
+					"Auto-defined missing LAN constant '" . $name . "' in " . $path,
+					E_USER_WARNING
+				);
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Convenience wrapper for callers that don't need template-defined
+	 * variables to land in their own scope (e.g. templates whose output
+	 * is exclusively side-effectful via super-globals or constants).
+	 *
+	 * Wraps predefineLegacyLans($path) + `require $path`. NOTE: variables
+	 * defined inside the template land in this method's scope and are
+	 * unreachable from the caller. Most legacy templates depend on
+	 * caller-scope variables — use predefineLegacyLans() + your own
+	 * require/include instead.
+	 *
+	 * @param string $path absolute filesystem path to the template
+	 * @return bool true on success, false on missing/unreadable file
+	 */
+	public static function requireLegacyTemplate($path)
+	{
+		if(!self::predefineLegacyLans($path))
+		{
+			return false;
+		}
+		require $path;
+		return true;
+	}
+
+	/**
+	 * Extract the set of LAN_* T_STRING tokens referenced as bare constants
+	 * in the given template. Results are cached keyed on sha1_file($path)
+	 * so the tokeniser only runs on cache miss.
+	 *
+	 * The scan is *not* transitive — only the supplied file is inspected.
+	 * Nested includes are expected to flow back through requireLegacyTemplate()
+	 * via coreTemplatePath() and get their own scan.
+	 *
+	 * @param string $path absolute filesystem path
+	 * @return string[]    distinct LAN_* names referenced as bare constants
+	 */
+	protected static function _extractLanConstantsFromTemplate($path)
+	{
+		$realpath = realpath($path);
+		$key = $realpath !== false ? $realpath : $path;
+
+		// Process-local memoisation — same path resolved repeatedly in one request.
+		static $local = array();
+		if(isset($local[$key]))
+		{
+			return $local[$key];
+		}
+
+		$sig = @hash_file('sha256', $path);
+		if($sig === false)
+		{
+			$local[$key] = array();
+			return $local[$key];
+		}
+
+		$cacheKey = 'lantokens_' . hash('sha256', $key) . '_' . $sig;
+
+		// APCu first if available + enabled.
+		$apcuActive = function_exists('apcu_fetch')
+			&& function_exists('apcu_enabled')
+			&& @apcu_enabled();
+
+		if($apcuActive)
+		{
+			$fetched = apcu_fetch($cacheKey, $ok);
+			if($ok && is_array($fetched))
+			{
+				$local[$key] = $fetched;
+				return $fetched;
+			}
+		}
+
+		// File cache fallback under e_CACHE.
+		$cacheDir = defined('e_CACHE') ? e_CACHE : null;
+		$cacheFile = null;
+		if(!$apcuActive && $cacheDir && is_dir($cacheDir) && is_writable($cacheDir))
+		{
+			$cacheFile = rtrim($cacheDir, '/\\') . DIRECTORY_SEPARATOR . $cacheKey . '.php';
+			if(is_file($cacheFile))
+			{
+				$cached = @include $cacheFile;
+				if(is_array($cached))
+				{
+					$local[$key] = $cached;
+					return $cached;
+				}
+			}
+		}
+
+		$src = @file_get_contents($path);
+		if($src === false)
+		{
+			$local[$key] = array();
+			return $local[$key];
+		}
+
+		$names = self::_extractLanConstantsFromSource($src);
+
+		if($apcuActive)
+		{
+			@apcu_store($cacheKey, $names, 0);
+		}
+		elseif($cacheFile !== null)
+		{
+			$payload = "<?php\nreturn " . var_export($names, true) . ";\n";
+			// Atomic-ish write: temp + rename.
+			$tmp = $cacheFile . '.' . getmypid() . '.tmp';
+			if(@file_put_contents($tmp, $payload, LOCK_EX) !== false)
+			{
+				@rename($tmp, $cacheFile);
+			}
+		}
+
+		$local[$key] = $names;
+		return $names;
+	}
+
+	/**
+	 * Tokenise PHP source and return the set of LAN_* names that look like
+	 * bare constant references. Public-static so test harnesses can exercise
+	 * it without touching the filesystem.
+	 *
+	 * Filters out tokens that are:
+	 *   - preceded (ignoring whitespace/comments) by function / class / interface
+	 *     / trait / use / :: / ->  (declarations & member access, not constants)
+	 *   - immediately followed by `(`  (function calls — defensive)
+	 *
+	 * @param string $src PHP source code
+	 * @return string[]    distinct LAN_* names
+	 */
+	public static function _extractLanConstantsFromSource($src)
+	{
+		if(!is_string($src) || $src === '' || !function_exists('token_get_all'))
+		{
+			return array();
+		}
+
+		$tokens = @token_get_all($src);
+		if(!is_array($tokens))
+		{
+			return array();
+		}
+
+		$found = array();
+		$count = count($tokens);
+
+		for($i = 0; $i < $count; $i++)
+		{
+			$t = $tokens[$i];
+			if(!is_array($t) || $t[0] !== T_STRING)
+			{
+				continue;
+			}
+			$name = $t[1];
+			if(strncmp($name, 'LAN_', 4) !== 0)
+			{
+				continue;
+			}
+
+			// Look back: skip whitespace & comments to find context token.
+			$prev = null;
+			for($j = $i - 1; $j >= 0; $j--)
+			{
+				$p = $tokens[$j];
+				if(is_array($p))
+				{
+					$pid = $p[0];
+					if($pid === T_WHITESPACE || $pid === T_COMMENT || $pid === T_DOC_COMMENT)
+					{
+						continue;
+					}
+				}
+				$prev = $p;
+				break;
+			}
+			if(is_array($prev))
+			{
+				$pid = $prev[0];
+				if($pid === T_FUNCTION
+					|| $pid === T_CLASS
+					|| $pid === T_INTERFACE
+					|| $pid === T_TRAIT
+					|| $pid === T_USE
+					|| $pid === T_DOUBLE_COLON
+					|| $pid === T_OBJECT_OPERATOR
+					|| (defined('T_NULLSAFE_OBJECT_OPERATOR') && $pid === T_NULLSAFE_OBJECT_OPERATOR)
+					|| (defined('T_NAME_QUALIFIED') && $pid === T_NAME_QUALIFIED)
+					|| (defined('T_NAME_FULLY_QUALIFIED') && $pid === T_NAME_FULLY_QUALIFIED))
+				{
+					continue;
+				}
+			}
+
+			// Look ahead: skip whitespace & comments — if next is `(`, treat as call.
+			$next = null;
+			for($k = $i + 1; $k < $count; $k++)
+			{
+				$n = $tokens[$k];
+				if(is_array($n))
+				{
+					$nid = $n[0];
+					if($nid === T_WHITESPACE || $nid === T_COMMENT || $nid === T_DOC_COMMENT)
+					{
+						continue;
+					}
+				}
+				$next = $n;
+				break;
+			}
+			if($next === '(')
+			{
+				continue;
+			}
+
+			$found[$name] = true;
+		}
+
+		return array_keys($found);
+	}
+
+	/**
 	 * Retrieve plugin template path
 	 * Override path could be forced to front- or back-end via
 	 * the $override parameter e.g. <code> e107::templatePath(plug_name, 'my', 'front')</code>
@@ -5651,16 +5964,7 @@ class e107
 		$configured_host = parse_url($siteurl, PHP_URL_HOST);
 		$http_host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
 
-		$allowed_hosts = array();
-		if(!empty($configured_host))
-		{
-			$allowed_hosts[] = $configured_host;
-		}
-		$trusted_hosts_pref = self::getPref('trusted_hosts');
-		if(!empty($trusted_hosts_pref))
-		{
-			$allowed_hosts = array_merge($allowed_hosts, (array) $trusted_hosts_pref);
-		}
+		$allowed_hosts = $this->getAllowedHosts();
 
 		if(self::isCli())
 		{
@@ -5688,6 +5992,53 @@ class e107
 		}
 
 		return $this;
+	}
+
+	/**
+	 * The list of hostnames this installation answers to: the host from the
+	 * `siteurl` pref plus any `trusted_hosts` pref entries.
+	 *
+	 * Shared by the boot-time host check in `set_urls_deferred()` and by the
+	 * public `isTrustedHost()` so both reason about the same allow-list.
+	 *
+	 * @return string[]
+	 */
+	private function getAllowedHosts()
+	{
+		$allowed_hosts = array();
+
+		$configured_host = parse_url(self::getPref('siteurl'), PHP_URL_HOST);
+		if(!empty($configured_host))
+		{
+			$allowed_hosts[] = $configured_host;
+		}
+
+		$trusted_hosts_pref = self::getPref('trusted_hosts');
+		if(!empty($trusted_hosts_pref))
+		{
+			$allowed_hosts = array_merge($allowed_hosts, (array) $trusted_hosts_pref);
+		}
+
+		return $allowed_hosts;
+	}
+
+	/**
+	 * Whether $httpHost is a hostname this installation answers to: the host
+	 * from the `siteurl` pref or one of the `trusted_hosts` entries added in
+	 * e107inc/e107#5639.
+	 *
+	 * This is the public wrapper around the same allow-list the boot-time host
+	 * check uses (see `set_urls_deferred()` and `isAllowedHost()`), so callers
+	 * such as the post-login destination check can ask "may I redirect to this
+	 * host?" without duplicating the matching rules.
+	 *
+	 * @param string $httpHost a bare hostname (scheme and port are ignored)
+	 *
+	 * @return bool
+	 */
+	public function isTrustedHost($httpHost)
+	{
+		return $this->isAllowedHost($this->getAllowedHosts(), $httpHost);
 	}
 
 	/**
