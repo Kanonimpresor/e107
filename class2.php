@@ -167,9 +167,17 @@ if(empty($PLUGINS_DIRECTORY))
 
 //define("MPREFIX", $mySQLprefix); moved to $e107->set_constants()
 
-if(empty($mySQLdefaultdb) && empty($config))
+// Positively detect a completed installation: real database credentials must be
+// present (v2.4 'database.db' or the legacy $mySQLdefaultdb). Anything else - a
+// missing/empty/0-byte file, or an install-pending lock holding only a
+// provisioning token - is not installed, so redirect to the installer. (An
+// include() of a 0-byte config returns int(1), which the old emptiness test let
+// slip through.)
+$e107_installed = !empty($mySQLdefaultdb) || (is_array($config) && !empty($config['database']['db']));
+$e107_install_pending = (is_array($config) && !empty($config['other']['install_pending'])) || !empty($E107_CONFIG['install_pending']);
+
+if($e107_install_pending || !$e107_installed)
 {
-  // e107_config.php is either empty, not valid or doesn't exist so redirect to installer..
   header('Location: install.php');
   exit();
 }
@@ -522,25 +530,6 @@ if(!isset($_E107['no_session']) && !isset($_E107['no_lan']))
 
 	$dbg->logTime('Set User Language Session');
 	e107::getLanguage()->set();  // set e_LANGUAGE, USERLAN, Language Session / Cookies etc. requires $pref;
-
-	if(deftrue('e_ADMIN_AREA') && ($id = e107::getSession()->get('emulate')))
-	{
-	    if(!empty($_POST['stopEmulation']))
-	    {
-	        e107::getSession()->clear('emulate');
-	        e107::getMessage()->addSuccess("Admin access emulation mode has been stopped.");
-	    }
-	    else
-	    {
-	        $emulatedUser = e107::user($id);
-	        define('USERCLASS_LIST', $emulatedUser['user_class']);
-	        define('ADMINPERMS', $emulatedUser['user_perms']);
-	        // define('USERID', $emulatedUser['user_id']); // Don't emulate user id. It will mess with logs.
-	        define('USERNAME', $emulatedUser['user_name']);
-	    }
-
-	    unset($id);
-	}
 }
 else
 {
@@ -863,7 +852,7 @@ if (($_SERVER['QUERY_STRING'] === 'logout'))
 	// TODO - should be done inside online handler, more core areas need it (session handler for example)
 	if (isset($pref['track_online']) && $pref['track_online'])
 	{
-		$sql->update('online', "online_user_id = 0, online_pagecount=online_pagecount+1 WHERE online_user_id = '{$udata}'");
+		$sql->createQueryBuilder()->update('online')->set('online_user_id', 0)->setExpression('online_pagecount', 'online_pagecount + 1')->where('online_user_id', $udata)->execute();
 	}
 	
 	// earlier event trigger with user data still available 
@@ -1633,10 +1622,7 @@ function init_session()
 	define('ADMIN', $user->isAdmin());
 	define('ADMINID', $user->getAdminId());
 	define('ADMINNAME', $user->getAdminName());
-	if(!defined('ADMINPERMS'))
-	{
-		define('ADMINPERMS', $user->getAdminPerms());
-	}
+	define('ADMINPERMS', $user->getAdminPerms());
 	define('ADMINEMAIL', $user->getAdminEmail());
 	define('ADMINPWCHANGE', $user->getAdminPwchange());
 
@@ -1660,16 +1646,8 @@ function init_session()
 	else
 	{
 		// we shouldn't use getValue() here, it's there for e.g. shortcodes, profile page render etc.
-		if(!defined('USERID'))
-		{
-			define('USERID', $user->getId());
-		}
-
-		if(!defined('USERNAME'))
-		{
-			define('USERNAME', $user->get('user_name'));
-		}
-
+		define('USERID', $user->getId());
+		define('USERNAME', $user->get('user_name'));
 		define('USERURL', $user->get('user_homepage', false)); //required for BC
 		define('USEREMAIL', $user->get('user_email'));
 		define('USER', true);
@@ -1745,10 +1723,7 @@ function init_session()
 	}
 
 	e107::getDebug()->logTime('[init_session: getClassList]');
-	if(!defined('USERCLASS_LIST'))
-	{
-		define('USERCLASS_LIST', $user->getClassList(true));
-	}
+	define('USERCLASS_LIST', $user->getClassList(true));
 	define('e_CLASS_REGEXP', $user->getClassRegex());
 	define('e_NOBODY_REGEXP', '(^|,)'.e_UC_NOBODY.'(,|$)');
 
